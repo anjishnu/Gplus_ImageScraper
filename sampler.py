@@ -227,6 +227,7 @@ def getLoads(word, service,limit=1000):
   Primary load function for retrieving large amounts of data
   for a particular keyword and then treating it 
   """
+  print "Getloads activated:"
   try:
    superlist = []
    activities_resource = service.activities()
@@ -237,7 +238,7 @@ def getLoads(word, service,limit=1000):
             and len(activities_document["items"])>0
             and len(superlist)<=limit):
        if 'items' in activities_document:
-         print 'got page with',len(activities_document['items'])
+         print 'Word:',word,'got page with',len(activities_document['items'])
          for activity in activities_document['items']:
            superlist = superlist + [activity]
        activities_document= activities_resource.search(
@@ -249,7 +250,11 @@ def getLoads(word, service,limit=1000):
    return superlist
   except Exception as e:
     print "Error Encountered",  e.content
-    return superlist
+    if len(superlist)>0:
+      return superlist
+    else:
+      raise Exception
+      return None
 
 
 def Driver(keylist):
@@ -265,10 +270,12 @@ def Driver(keylist):
   processed = []
   for key in keylist:
     try:
-      response = None
-      while(response!=[]):
-        response = getLoads(key,service)
-      print key,'response received',response
+      #response = None
+      #while(response==[] and response!=None):
+      print "new key",key 
+      response = getLoads(key,service)
+      #print key, "response complete", len(response)
+      print key,'response received', len(response)
       photos = parse(response)
       keypath = photopath+key+'/'
       if not os.path.exists(keypath):
@@ -294,13 +301,13 @@ def Driver(keylist):
         f = open(keypath+str(count)+'.json','w')
         f.write(json.dumps(tempjson))
         f.close()
-        processed += [key]
+      processed += [key]
     except Exception as e:
       print "Exception occurred",e
       return processed
 
-    print 'Code Execution'
-    return processed
+  print 'Code Execution complete'
+  return processed
 
 #Driver()
 # For more information on the Google+ API you can visit:
