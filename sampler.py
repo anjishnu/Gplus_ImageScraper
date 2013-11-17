@@ -37,6 +37,7 @@ from oauth2client import file
 from oauth2client import client
 from oauth2client import tools
 
+mixedkeys = "mixedkeywords.txt"
 # Parser for command-line arguments.
 parser = argparse.ArgumentParser(
     description=__doc__,
@@ -143,20 +144,17 @@ def parse(items):
       attachments = object['attachments']
       for attachment in attachments:
         """Attachment is the base unit where variations happen"""
-        #print count,attachment['objectType']
         if attachment['objectType']=='photo':
           photocount+=1
           print 'photodetected, replies:', object['replies']['totalItems'], ' at elem no.',count
-          #Comments URL
-          #object['replies']['selfLink']
           if 'image' in attachment:
-            #print attachment['image']['url']
             photolist += [item]
     count+=1
   print "total no. of photos:",photocount
   return photolist
 
 keyfile = "emotion-keywords.txt"
+
 def loadKeys(keyfile):
   """
   Returns a list of keys to perform getLoads on
@@ -165,7 +163,6 @@ def loadKeys(keyfile):
   keylist = []
   for line in f:
     keylist+= [line.strip()]
-
   return keylist    
 
 def getID(activity):
@@ -178,6 +175,7 @@ def getReplies(activityId,service):
   generated from getServ, this retrieves a JSON response
   from Google containing the comments 
   """
+  
   try:
     comments_resource = service.comments()
     comments_doc = comments_resource.list(
@@ -222,11 +220,14 @@ def toCommentList(comments_doc):
   return flist
   
 
-def getLoads(word, service,limit=1000):
+def getLoads(word, service,limit=100):
   """
   Primary load function for retrieving large amounts of data
-  for a particular keyword and then treating it 
+  for a particular keyword and then treating it
+  New loads function only makes http requests for images with at least one
+  comment
   """
+
   print "Getloads activated:"
   try:
    superlist = []
@@ -239,26 +240,48 @@ def getLoads(word, service,limit=1000):
             and len(superlist)<=limit):
        if 'items' in activities_document:
          print 'Word:',word,'got page with',len(activities_document['items'])
+
          for activity in activities_document['items']:
-           superlist = superlist + [activity]
+           """Photo detection """
+           if 'attachments' in activity['object']:
+             if activity['object']['attachments'][0]['objectType']=='photo':
+               """Ensures at least one response """
+               if int(activity['object']['replies']['totalItems'])>0:
+                 superlist = superlist + [activity]
+
        activities_document= activities_resource.search(
-             maxResults=20, orderBy='recent',query=word,pageToken=nextPageToken).execute()
+         maxResults=20, orderBy='recent',
+         query=word,
+         pageToken=nextPageToken).execute()
        if 'nextPageToken' in activities_document:
          nextPageToken = activities_document['nextPageToken']
          print "new length is now", len(superlist)
-   print "Loop ended, limit",limit,"reached"
+         
+   print "Loop ended, limit",len(superlist),"reached"
    return superlist
+   
   except Exception as e:
-    print "Error Encountered",  e.content
+    print "GetLoads Error Encountered", e
+    #print dir(e)
     if len(superlist)>0:
       return superlist
     else:
       raise Exception
       return None
 
+def areValidReplies(replies):
+  if type(replies)!=dict:
+      return False
+  if replies == 'NONE':
+    return False
+  for reply in replies['items']:
+    if reply['plusoners']['totalItems']>0:
+      return True
+  return False 
 
+  
 def Driver(keylist):
-  photopath = os.getcwd()+"/photos/"
+  photopath = os.getcwd()+"/photos_HL/"
   if not os.path.exists(photopath):
     os.makedirs(photopath)
   #keylist = loadKeys(keyfile)
@@ -272,14 +295,17 @@ def Driver(keylist):
     try:
       #response = None
       #while(response==[] and response!=None):
-      print "new key",key 
-      response = getLoads(key,service)
-      #print key, "response complete", len(response)
-      print key,'response received', len(response)
-      photos = parse(response)
+      print "new key",key
       keypath = photopath+key+'/'
       if not os.path.exists(keypath):
+        response = getLoads(key,service)
+        photos = response
+        #photos = parse(response)
         os.makedirs(keypath)
+      else:
+        continue
+      #print key, "response complete", len(response)
+      print key,'response received', len(response)
       count = 0
       for photo in photos:
         # Make an API Call only if the number of responses
@@ -292,22 +318,29 @@ def Driver(keylist):
           replies = getReplies(getID(photo),service)
         else:
           replies ='NONE'
-        tempjson = [photo,replies]
-        url = getPhotoURL(photo)
-        try:
-          downloadPhoto(url,keypath+str(count))
-        except Exception as e:
-          print "Error downloading photo",e
-        f = open(keypath+str(count)+'.json','w')
-        f.write(json.dumps(tempjson))
-        f.close()
+        if areValidReplies(replies):
+          tempjson = [photo,replies]
+          url = getPhotoURL(photo)
+          try:
+            downloadPhoto(url,keypath+str(count)+'cleaned')
+            f = open(keypath+str(count)+'cleaned'+'.json','w')
+            f.write(json.dumps(tempjson))
+            f.close()
+          except Exception as e:
+            print "Error downloading photo",e
+          
       processed += [key]
+
+      
     except Exception as e:
       print "Exception occurred",e
-      return processed
+      incomplete= set(keylist)-set(processed)
+      return incomplete
 
   print 'Code Execution complete'
-  return processed
+  unfinished = set(keylist)-set(processed)
+  return unfinished
+
 
 #Driver()
 # For more information on the Google+ API you can visit:
