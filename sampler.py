@@ -245,7 +245,7 @@ def getLoads(word, service,limit=100):
            """Photo detection """
            if 'attachments' in activity['object']:
              if activity['object']['attachments'][0]['objectType']=='photo':
-               """Ensures at least one response """
+               """Ensures at least one response- Remove this code to get rid of this condition """
                if int(activity['object']['replies']['totalItems'])>0:
                  superlist = superlist + [activity]
 
@@ -261,12 +261,12 @@ def getLoads(word, service,limit=100):
    return superlist
    
   except Exception as e:
-    print "GetLoads Error Encountered", e
+    print "GetLoads Error Encountered", 
     #print dir(e)
     if len(superlist)>0:
       return superlist
     else:
-      raise Exception
+      raise e
       return None
 
 def areValidReplies(replies):
@@ -274,6 +274,9 @@ def areValidReplies(replies):
       return False
   if replies == 'NONE':
     return False
+
+  #Conditional check to ensure that at least one user comment in the data
+  #has been +1'd at least once
   for reply in replies['items']:
     if reply['plusoners']['totalItems']>0:
       return True
@@ -335,12 +338,27 @@ def Driver(keylist):
     except Exception as e:
       print "Exception occurred",e
       incomplete= set(keylist)-set(processed)
-      return incomplete
+      return incomplete, e
 
   print 'Code Execution complete'
   unfinished = set(keylist)-set(processed)
-  return unfinished
+  return unfinished, True
 
+def run():
+  keylist = loadKeys(mixedkeys)
+  service = servGen()
+  out = keylist
+  flag = True
+  while(len(out)!=0 and flag):
+    out,e = Driver(keylist)
+    keylist = list(out)
+    if e!=True:
+      if type(e) is not KeyError:
+        print type(e) 
+        if e._get_reason()=="Rate Limit Exceeded":
+            flag = False
+            print "Rate Limit Exceeded: Exiting Gracefully"
+  return out
 
 #Driver()
 # For more information on the Google+ API you can visit:

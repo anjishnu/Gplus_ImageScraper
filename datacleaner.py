@@ -1,5 +1,4 @@
 import sampler, json, os
-
 """
 The goal of this module is to prune already loaded data to the standards required
 for the project.
@@ -10,6 +9,18 @@ print "Pruner Loaded"
 photopath = os.getcwd()+"/photos_HL/"
 photopath1 = os.getcwd()+"/photos/"
 
+def datagleaner(rootpath=photopath1):
+  for path, subdirs, files in os.walk(rootpath):
+    for name in files:
+      if '.json' in name:
+        curpath = os.path.join(path,name)
+        f = open(curpath,'r+')
+        try:
+          json_obj = json.load(f)
+        except:
+          json_obj = ["None"]
+        return json_obj
+        
 def datacleaner(rootpath=photopath1):
   removedlist = []
   for path, subdirs, files in os.walk(rootpath):
@@ -45,7 +56,7 @@ def datacleaner(rootpath=photopath1):
            if 'cleaned' not in name:
              name = name.split(".")
              newname = name[0]+'cleaned.json'
-             os.rename(curpath,os.path.join(path,newname)
+             os.rename(curpath,os.path.join(path,newname))
              photo_location = os.path.join(path,photoname) 
              os.rename(photo_location,photo_location+'cleaned')
             
