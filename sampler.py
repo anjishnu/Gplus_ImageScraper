@@ -23,6 +23,8 @@ by running:
 
   $ python sampler.py --help
 
+You can change the keywords used by the API 
+
 """
 
 import argparse
@@ -277,10 +279,13 @@ def areValidReplies(replies):
 
   #Conditional check to ensure that at least one user comment in the data
   #has been +1'd at least once
+  """
   for reply in replies['items']:
     if reply['plusoners']['totalItems']>0:
       return True
-  return False 
+  return False
+  """
+  return True
 
   
 def Driver(keylist):
@@ -360,6 +365,7 @@ def run():
             print "Rate Limit Exceeded: Exiting Gracefully"
   return out
 
+run()
 #Driver()
 # For more information on the Google+ API you can visit:
 #
